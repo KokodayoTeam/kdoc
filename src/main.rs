@@ -99,10 +99,27 @@ struct Args {
 
 fn main() {
     //read rules from command-line
-    let args = Args::parse();
-
+    let mut args = Args::parse();
     //copy dir
     DefaultCloner::clone_dir(args.from.to_str().unwrap(), DEFAULT_DOC_DIR_NAME);
+
+    //add default config
+    let mut default_config = vec![
+        ".rs".to_string(),
+        ".c".to_string(),
+        ".h".to_string(),
+        ".cpp".to_string(),
+        ".cxx".to_string(),
+        ".hpp".to_string(),
+        ".py".to_string(),
+        ".js".to_string(),
+        ".zig".to_string(),
+        ".java".to_string(),
+        ".go".to_string(),
+        ".lisp".to_string(),
+        ".lua".to_string(),
+    ];
+    args.pattern.append(&mut default_config);
 
     //traverse the dir and do map-job
     let mapper = DefaultMapper::from_string(DEFAULT_DOC_DIR_NAME.to_string(), args.pattern);
