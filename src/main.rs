@@ -1,10 +1,12 @@
-use std::fs::{self, copy, create_dir, remove_file, rename, DirEntry, File};
+use std::fs::{self, create_dir, remove_file, DirEntry, File};
 use std::io;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::exit;
 extern crate fs_extra;
+use clap::Parser;
+use clap::{arg, command};
 use fs_extra::copy_items;
-use fs_extra::dir::{self, remove};
+use fs_extra::dir;
 
 pub trait Cloner {
     fn clone_dir(from: &str, to: &str) -> io::Result<()>;
@@ -41,10 +43,10 @@ impl DefaultMapper {
             if path.ends_with(string) {
                 path.push_str(".md");
                 File::create(path);
-                remove_file(entry.path());
                 break;
             }
         }
+        remove_file(entry.path());
     }
     fn visit_dirs(&self, dir: &Path) -> io::Result<()> {
         if dir.is_dir() {
@@ -67,6 +69,9 @@ impl Cloner for DefaultCloner {
     fn clone_dir(from: &str, to: &str) -> io::Result<()> {
         if !Path::new(to).exists() {
             create_dir(to)?;
+        } else {
+            println!("doc dir already exists!");
+            exit(0);
         }
         let path = Path::new(from);
         for entry in fs::read_dir(path)? {
@@ -81,12 +86,27 @@ impl Cloner for DefaultCloner {
     }
 }
 
+#[derive(Parser, Debug)]
+#[command(term_width = 0)]
+struct Args {
+    #[arg(short = 'p')]
+    pattern: Vec<String>,
+
+    /// The path to the file to read
+    #[arg(long)]
+    from: std::path::PathBuf,
+}
+
 fn main() {
     //read rules from command-line
+    let args = Args::parse();
 
     //copy dir
+    DefaultCloner::clone_dir(args.from.to_str().unwrap(), DEFAULT_DOC_DIR_NAME);
 
     //traverse the dir and do map-job
+    let mapper = DefaultMapper::from_string(DEFAULT_DOC_DIR_NAME.to_string(), args.pattern);
+    mapper.do_map();
 }
 
 #[cfg(test)]
