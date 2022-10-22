@@ -1,4 +1,4 @@
-use std::fs::{self, copy, rename, DirEntry, create_dir};
+use std::fs::{self, copy, create_dir, remove_file, rename, DirEntry, File};
 use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -10,18 +10,55 @@ pub trait Cloner {
     fn clone_dir(from: &str, to: &str) -> io::Result<()>;
 }
 pub trait FileMapper {
-    fn from_json(path: &str) -> Self;
-    fn do_map();
+    fn from_json(&mut self, path: &str) -> Self;
+    fn do_map(&self);
 }
 
-struct DefaultMapper {}
+const DEFAULT_DOC_DIR_NAME: &str = "doc";
+
+struct DefaultMapper {
+    strings: Vec<String>,
+    target: String,
+}
 impl FileMapper for DefaultMapper {
-    fn from_json(path: &str) -> Self {
-        DefaultMapper {}
+    fn from_json(&mut self, path: &str) -> Self {
+        todo!()
+    }
+    fn do_map(&self) {
+        self.visit_dirs(Path::new(&self.target));
+    }
+}
+
+impl DefaultMapper {
+    fn from_string(target: String, strings: Vec<String>) -> Self {
+        Self { strings, target }
     }
 
-    fn do_map() {
-        todo!()
+    fn map_file(&self, entry: &DirEntry) {
+        let mut path = entry.path().to_str().unwrap().to_string();
+
+        for string in &self.strings {
+            if path.ends_with(string) {
+                path.push_str(".md");
+                File::create(path);
+                remove_file(entry.path());
+                break;
+            }
+        }
+    }
+    fn visit_dirs(&self, dir: &Path) -> io::Result<()> {
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    self.visit_dirs(&path)?;
+                } else {
+                    self.map_file(&entry);
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -45,19 +82,27 @@ impl Cloner for DefaultCloner {
 }
 
 fn main() {
-    //copy dir
+    //read rules from command-line
 
-    //read rules of filemapper
+    //copy dir
 
     //traverse the dir and do map-job
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{DefaultCloner, Cloner};
+    use super::*;
 
     #[test]
     fn dir_clone() {
-        DefaultCloner::clone_dir("src", "doc").unwrap();
+        DefaultCloner::clone_dir("src", "tmp1").unwrap();
+    }
+
+    #[test]
+    fn do_map() {
+        DefaultCloner::clone_dir("src", "tmp2").unwrap();
+        let v = vec![".rs".to_string()];
+        let dm = DefaultMapper::from_string("tmp2".to_string(), v);
+        dm.do_map();
     }
 }
